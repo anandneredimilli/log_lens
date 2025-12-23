@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import re
 from typing import List
+from datetime import datetime
 
 # App config
 st.set_page_config(
@@ -19,6 +20,10 @@ predefined_patterns = {
                 "RequestID": r"INFO\s*--\s*:\s\[(.*?)\]",
                 "Custom Regex": ""
             }
+
+timestamp_pattern = re.compile(
+    r"\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{6} #\d{7}]"
+)
 
 accepted_files = ["csv", "xlsx"]
 
@@ -41,14 +46,25 @@ def read_uploaded_file(uploaded_file: st.runtime.uploaded_file_manager.UploadedF
     else:
         raise ValueError("Unsupported file type")
 
+def extract_timestamp(line):
+    match = timestamp_pattern.search(line)
+    if not match:
+        return datetime.min
+    clean = match.group().replace('[', '').replace(']', '')
+    return datetime.fromisoformat(clean.split(' #')[0])
+
 def group_logs_by_request_id(texts, request_ids):
     grouped = {req_id: [] for req_id in request_ids}
 
     for line in texts:
+        if line.strip() == "":
+            next 
         for req_id in request_ids:
             if req_id in line:
                 grouped[req_id].append(line)
 
+    for req_id, logs in grouped.items():
+        grouped[req_id] = sorted(logs, key=extract_timestamp)
     return grouped
 
 def build_grouped_log_text(grouped_logs):
